@@ -23,6 +23,7 @@ int pickPerson(const Solution& state) {
 	int best_index = -1;
 	int max_diff = 0;
 	for (size_t i=0; i<state.undecided.size(); ++i) {
+		// num unique skills
 		int diff = std::popcount((state.undecided[i] & ~state.covered) & state.skills_mask);
 
 		if (diff > max_diff) {
@@ -34,14 +35,17 @@ int pickPerson(const Solution& state) {
 }
 
 Solution simplify(Solution state) {
+	// this is weird. Can't just have a do, while loop?
 	bool changes = true;
 	while (changes) {
 		changes = false;
+		// I have no idea what this is doing
 		std::sort(state.undecided.begin(), state.undecided.end(),
 			[](uint64_t a, uint64_t b) {
 				return std::popcount(a) > std::popcount(b);
 			});
-
+		
+		// is this if it's not possible? didn't even read it tbh
 		for (size_t i = 0; i < state.undecided.size(); ++i) {
 			for (size_t j = i + 1; j < state.undecided.size(); ) {
 				if ((state.undecided[j] & state.undecided[i]) == state.undecided[j]) {
@@ -54,6 +58,7 @@ Solution simplify(Solution state) {
 			}
 		}
 
+		// no idea. I'm ignoring this
 		uint64_t once = 0;
 		uint64_t twice = 0;
 
@@ -87,33 +92,45 @@ Solution simplify(Solution state) {
 }
 
 Solution solve(Solution state, Solution& best_state) {
-	if (state.team_size >= best_state.team_size) {
+	// // bounding. Improvement: if two less than current best, can end if one person can't get us solution
+	// if (state.team_size == best_state.team_size - 1) {
+	// 	return best_state;
+	// }
+
+	// bounding. Improvement: if two less than current best, can end if one person can't get us solution
+	if (state.team_size == best_state.team_size - 2) {
+		if (~(state.skills_mask & (state.covered | state.undecided[pickPerson(state)]))) {
 		return best_state;
+		}
 	}
 
 	if (state.covered  == state.skills_mask) {
+		// needed? We already checked if geq
 		if (state.team_size < best_state.team_size) {
 			best_state = state;
 		}
 		return state;
 	}
-
+	// potentially can ensure we never reach this by starting in the right place? have to check.
 	if (state.undecided.empty()) {
 		return best_state;
 	}
-
+	// do we always want to choose based on skills diff? I guess yeah? Idk.
 	int next_index = pickPerson(state);
+	// nobody adds a skill
 	if (next_index == -1) {
 		return best_state;
 	}
+	// swaps selected person to back and pops it
 	std::swap(state.undecided[next_index], state.undecided.back());
 	uint64_t next_person = state.undecided.back();
 	state.undecided.pop_back();
 	
+	// include and exclude state and then recursion time
 	Solution include_state = state;
 	include_state.included.push_back(next_person);
-	include_state.covered |= next_person;
-	include_state.uncovered &= ~next_person & state.skills_mask;
+	include_state.covered |= next_person; // add their skills to covered
+	include_state.uncovered &= ~next_person & state.skills_mask; // update uncovered (needed? When do we check/use this? Add optim for this?)
 	include_state.team_size += 1;
 	include_state = simplify(include_state);
 	Solution include_solution = solve(include_state, best_state);
@@ -123,6 +140,7 @@ Solution solve(Solution state, Solution& best_state) {
 	exclude_state = simplify(exclude_state);
 	Solution exclude_solution = solve(exclude_state, best_state);
 
+	// use max? seems like it could be covered by the checks maybe? idk.
 	Solution better;
 	if (include_solution.team_size <= exclude_solution.team_size) {
 		better = include_solution;
@@ -136,6 +154,7 @@ Solution solve(Solution state, Solution& best_state) {
 	return better;
 }
 
+// seems fine i'll deal with this later.
 Solution approximate(Solution state) {
 	while (state.covered != state.skills_mask) {
 		int best_index = pickPerson(state);
