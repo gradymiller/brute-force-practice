@@ -62,12 +62,12 @@ Solution simplify(Solution state) {
             }
         }
 
-        int skill_count[64] = {0};
+        int skill_count[200] = {0};
 
         // find what skills each remaining person has
         for (std::bitset<200> person : state.undecided) {
 			std::bitset<200> valid = person & ~state.covered;
-            for (int b = 0; b < 64; ++b) {
+            for (int b = 0; b < 200; ++b) {
                 if (valid.test(b)) {
                     skill_count[b]++;
                 }
@@ -196,8 +196,11 @@ int main() {
 
 	for (int i=0; i<k; ++i) {
 		std::cin >> s;
-		skillset[s] = (1ULL << i);
-		skills_mask |= skillset[s];
+		std::bitset<200> mask;
+		mask.set(i);
+
+		skillset[s] = mask;
+		skills_mask.set(i);
 	}
 
 	int num;
