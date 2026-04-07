@@ -1,3 +1,5 @@
+//TODO: There is an issue in the simplify function, it isn't returning things
+//correctly, without it, the first testcase runs but the second still does not
 #include <iostream>
 #include <vector>
 #include <string>
@@ -34,66 +36,73 @@ int pickPerson(const Solution& state) {
 	return best_index;
 }
 
-// Using a separate function to get unique bits from a lst of bitstrings
-uint64_t getUnique(std::vector<uint64_t> lst) {
-	uint64_t once = 0;
-	uint64_t twice = 0;
-
-	for (uint64_t v : lst) {
-		twice |= once & v;
-		once ^= v;
-	}
-
-	return once & ~twice;
-}
-
 Solution simplify(Solution state) {
-	// this is weird. Can't just have a do, while loop?
-	bool changes = true;
-	while (changes) {
-		changes = false;
-		// I have no idea what this is doing
-		std::sort(state.undecided.begin(), state.undecided.end(),
-			[](uint64_t a, uint64_t b) {
-				return std::popcount(a) > std::popcount(b);
-			});
-		
-		// is this if it's not possible? didn't even read it tbh
-		for (size_t i = 0; i < state.undecided.size(); ++i) {
-			for (size_t j = i + 1; j < state.undecided.size(); ) {
-				if ((state.undecided[j] & state.undecided[i]) == state.undecided[j]) {
-					std::swap(state.undecided[j], state.undecided.back());
-					state.undecided.pop_back();
-					changes = true;
-				} else {
-					++j;
-				}
-			}
-		}
+    bool changed = true;
 
-		uint64_t unique_bits;
-		for (size_t i = 0; i < state.undecided.size(); ) {
-			uint64_t val = state.undecided[i];
+    while (changed) {
+        changed = false;
 
-			// Using function to get unique bits 
-			unique_bits = getUnique(state.undecided);
-			unique_bits &= state.skills_mask;
+		// Remove subsets
+        for (size_t i = 0; i < state.undecided.size(); ++i) {
+            for (size_t j = i + 1; j < state.undecided.size();) {
+                uint64_t a = state.undecided[i];
+                uint64_t b = state.undecided[j];
 
-			if (val & unique_bits) {
-				state.included.push_back(val);
-				state.covered |= val;
-				state.uncovered &= ~val & state.skills_mask;
-				state.team_size += 1;
+                if ((a & b) == a) {
+					// remove if a is subset of b
+                    std::swap(state.undecided[i], state.undecided.back());
+                    state.undecided.pop_back();
+                    changed = true;
+                    break;
+                } else if ((a & b) == b) {
+					// remove if b is a subset of a
+                    std::swap(state.undecided[j], state.undecided.back());
+                    state.undecided.pop_back();
+                    changed = true;
+                } else {
+                    ++j;
+                }
+            }
+        }
 
-				std::swap(state.undecided[i], state.undecided.back());
-				state.undecided.pop_back();
-				changes = true;
+        int skill_count[64] = {0};
 
-			} else {
-				++i;
-			}
-		}
-	}
+        // find what skills each remaining person has
+        for (uint64_t person : state.undecided) {
+            for (int b = 0; b < 64; ++b) {
+                if (person & (1ULL << b)) {
+                    skill_count[b]++;
+                }
+            }
+        }
+
+		// get the unique ones
+        uint64_t unique_bits = 0;
+        for (int b = 0; b < 64; ++b) {
+            if (skill_count[b] == 1) {
+                unique_bits |= (1ULL << b);
+            }
+        }
+
+        // include the people who are forced because of unique bits
+        for (size_t i = 0; i < state.undecided.size();) {
+            uint64_t p = state.undecided[i];
+
+            if (p & unique_bits) {
+                state.included.push_back(p);
+                state.covered |= p;
+                state.uncovered &= ~p & state.skills_mask;
+                state.team_size++;
+
+                std::swap(state.undecided[i], state.undecided.back());
+                state.undecided.pop_back();
+                changed = true;
+            } else {
+                ++i;
+            }
+        }
+    }
+
     return state;
 }
 
@@ -212,16 +221,25 @@ int main() {
 	initial_state.tree_depth = 0;
 	initial_state.skills_mask = skills_mask;
 
+//	Solution best_guess = approximate(initial_state);
+//	for (size_t i=0; i<best_guess.included.size(); ++i) {
+//		std::bitset<64> bits(best_guess.included[i]);
+//		std::cout << bits << std::endl;
+//	}
 	initial_state = simplify(initial_state);
 	Solution best_guess = approximate(initial_state);
+//	for (size_t i=0; i<best_guess.included.size(); ++i) {
+//		std::bitset<64> bits(best_guess.included[i]);
+//		std::cout << bits << std::endl;
+//	}
 
 	Solution solution_state = solve(initial_state, best_guess);
 
 	std::cout << solution_state.team_size << std::endl;
-	for (size_t i=0; i<solution_state.included.size(); ++i) {
-		std::bitset<64> bits(solution_state.included[i]);
-		std::cout << bits << std::endl;
-	}
+//	for (size_t i=0; i<solution_state.included.size(); ++i) {
+//		std::bitset<64> bits(solution_state.included[i]);
+//		std::cout << bits << std::endl;
+//	}
 
 
 
