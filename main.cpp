@@ -106,8 +106,14 @@ Solution simplify(Solution state) {
 }
 
 Solution solve(Solution state, Solution& best_state) {
+	if (state.covered  == state.skills_mask) {
+		if (state.team_size < best_state.team_size) {
+			best_state = state;
+		}
+		return state;
+	}
+
 	int idx = pickPerson(state);
-	
 	if (idx == -1) {
 		return best_state;
 	}
@@ -118,13 +124,6 @@ Solution solve(Solution state, Solution& best_state) {
 		}
 	}
 
-	if (state.covered  == state.skills_mask) {
-		// needed? We already checked if geq
-		if (state.team_size < best_state.team_size) {
-			best_state = state;
-		}
-		return state;
-	}
 	// potentially can ensure we never reach this by starting in the right place? have to check.
 	if (state.undecided.empty()) {
 		return best_state;
