@@ -76,7 +76,7 @@ Solution simplify(Solution state) {
 
 		// get the unique ones
         std::bitset<200> unique_bits = 0;
-        for (int b = 0; b < 64; ++b) {
+        for (int b = 0; b < 200; ++b) {
             if (skill_count[b] == 1) {
                 unique_bits.set(b);
             }
@@ -85,8 +85,9 @@ Solution simplify(Solution state) {
         // include the people who are forced because of unique bits
         for (size_t i = 0; i < state.undecided.size();) {
             std::bitset<200> p = state.undecided[i];
+			std::bitset<200> valid = p & ~state.covered;
 		
-            if ((p & unique_bits).any()) {
+            if ((valid & unique_bits).any()) {
                 state.included.push_back(p);
                 state.covered |= p;
                 state.uncovered &= (~p & state.skills_mask);
@@ -105,14 +106,14 @@ Solution simplify(Solution state) {
 }
 
 Solution solve(Solution state, Solution& best_state) {
-	// // bounding. Improvement: if two less than current best, can end if one person can't get us solution
-	// if (state.team_size == best_state.team_size - 1) {
-	// 	return best_state;
-	// }
+	int idx = pickPerson(state);
+	
+	if (idx == -1) {
+		return best_state;
+	}
 
-	// bounding. Improvement: if two less than current best, can end if one person can't get us solution
 	if (state.team_size == best_state.team_size - 2) {
-		if ((state.skills_mask & ~(state.covered | state.undecided[pickPerson(state)])).any()) {
+		if ((state.skills_mask & ~(state.covered | state.undecided[idx])).any()) {
 		return best_state;
 		}
 	}
@@ -179,7 +180,7 @@ Solution approximate(Solution state) {
 		state.undecided.pop_back();
 		state.included.push_back(val);
 		state.covered |= val;
-		state.uncovered &= ~val;
+		state.uncovered &= (~val & state.skills_mask);
 		state.team_size += 1;
 	}
 	return state;
@@ -214,6 +215,7 @@ int main() {
 		}
 	}
 	
+	// Setup initial state and simplify it before running solvers
 	Solution initial_state;
 	initial_state.undecided = people;
 	initial_state.uncovered = skills_mask;
@@ -221,26 +223,16 @@ int main() {
 	initial_state.team_size = 0;
 	initial_state.tree_depth = 0;
 	initial_state.skills_mask = skills_mask;
-
-//	Solution best_guess = approximate(initial_state);
-//	for (size_t i=0; i<best_guess.included.size(); ++i) {
-//		std::bitset<64> bits(best_guess.included[i]);
-//		std::cout << bits << std::endl;
-//	}
 	initial_state = simplify(initial_state);
-	Solution best_guess = approximate(initial_state);
-//	for (size_t i=0; i<best_guess.included.size(); ++i) {
-//		std::bitset<64> bits(best_guess.included[i]);
-//		std::cout << bits << std::endl;
-//	}
 
+	// Do greedy alg to get a best guess
+	Solution best_guess = approximate(initial_state);
+
+	// Run the branch and bound
 	Solution solution_state = solve(initial_state, best_guess);
 
+	// Print the result
 	std::cout << solution_state.team_size << std::endl;
-//	for (size_t i=0; i<solution_state.included.size(); ++i) {
-//		std::bitset<64> bits(solution_state.included[i]);
-//		std::cout << bits << std::endl;
-//	}
 
 
 
