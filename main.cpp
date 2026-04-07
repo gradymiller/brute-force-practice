@@ -67,7 +67,7 @@ Solution simplify(Solution state) {
         // find how many of each skill is left
         for (std::bitset<200> person : state.undecided) {
 			std::bitset<200> valid = person & ~state.covered;
-            for (size_t i=0; i<200; ++i) {
+            for (int i=valid._Find_first(); i<200; i=valid._Find_next(i)) {
                 skill_count[i]++;
             }
         }
