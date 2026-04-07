@@ -67,10 +67,8 @@ Solution simplify(Solution state) {
         // find how many of each skill is left
         for (std::bitset<200> person : state.undecided) {
 			std::bitset<200> valid = person & ~state.covered;
-            for (int b = 0; b < 200; ++b) {
-                if (valid.test(b)) {
-                    skill_count[b]++;
-                }
+            for (size_t i=0; i<200; ++i) {
+                skill_count[i]++;
             }
         }
 
@@ -102,7 +100,7 @@ Solution simplify(Solution state) {
         }
 
 	// S5: exclude people who don't add any new skills
-		for (size_t i=0; i < state.undecided.size(); ++i) {
+		for (size_t i=0; i < state.undecided.size(); ) {
 			std::bitset<200> p = state.undecided[i];
 			std::bitset<200> valid = p & ~state.covered;
 
@@ -114,24 +112,22 @@ Solution simplify(Solution state) {
 				++i;
 			}
 		}
-		/*
-		std::bitset<200> possible = 0;
-		for (auto p : state.undecided) {
-			possible |= p;
-		}
-		possible &= ~state.covered;
-
-		if ((state.uncovered & ~possible).any()) {
-			state.undecided.clear();
-			state.covered.reset();
-			break;
-		}	
-		*/
 	}
     return state;
 }
 
-Solution solve(Solution state, Solution& best_state) {
+Solution solve(Solution& state, Solution& best_state) {
+	// Prune when it is impossible to get a solution from what is left
+	std::bitset<200> possible = 0;
+	for (auto p : state.undecided) {
+		possible |= p;
+	}
+	possible &= ~state.covered;
+
+	if ((state.uncovered & ~possible).any()) {
+		return best_state;
+	}	
+
 	if (state.covered  == state.skills_mask) {
 		if (state.team_size < best_state.team_size) {
 			best_state = state;
