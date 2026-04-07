@@ -10,7 +10,7 @@
 struct Solution {
 	std::vector<std::bitset<200>> undecided;
 	std::vector<std::bitset<200>> included;
-	std::vector<std::bitset<200>> excluded;
+	//std::vector<std::bitset<200>> excluded;
 	std::bitset<200> uncovered;
 	std::bitset<200> covered;
 	int team_size;
@@ -21,9 +21,9 @@ struct Solution {
 int pickPerson(const Solution& state) {
 	int best_index = -1;
 	int max_diff = 0;
+	auto uncovered_mask = ~state.covered & state.skills_mask;
 	for (size_t i=0; i<state.undecided.size(); ++i) {
-		// num unique skills
-		int diff = ((state.undecided[i] & ~state.covered) & state.skills_mask).count();
+		int diff = (state.undecided[i] & uncovered_mask).count();
 
 		if (diff > max_diff) {
 			max_diff = diff;
@@ -64,7 +64,7 @@ Solution simplify(Solution state) {
 
         int skill_count[200] = {0};
 
-        // find what skills each remaining person has
+        // find how many of each skill is left
         for (std::bitset<200> person : state.undecided) {
 			std::bitset<200> valid = person & ~state.covered;
             for (int b = 0; b < 200; ++b) {
@@ -101,6 +101,20 @@ Solution simplify(Solution state) {
             }
         }
     }
+
+	// S5: exclude people who don't add any new skills
+	for (size_t i = 0; i < state.undecided.size();) {
+    std::bitset<200> p = state.undecided[i];
+    std::bitset<200> valid = p & ~state.covered;
+
+    if (!valid.any()) {
+        std::swap(state.undecided[i], state.undecided.back());
+        state.undecided.pop_back();
+        changed = true;
+    } else {
+        ++i;
+    }
+}
 
     return state;
 }
@@ -149,7 +163,7 @@ Solution solve(Solution state, Solution& best_state) {
 	Solution include_solution = solve(include_state, best_state);
 
 	Solution exclude_state = state;
-	exclude_state.excluded.push_back(next_person);
+	//exclude_state.excluded.push_back(next_person);
 	exclude_state = simplify(exclude_state);
 	Solution exclude_solution = solve(exclude_state, best_state);
 
@@ -242,12 +256,13 @@ int main() {
 	// Solve(state_state) -> We can run Simlify in the branching -- COMPLETE
 
 	// Simplifications:
-	// S1: if someone is a subset of someone else, automatically exclude the
-	// SUBSET (we don't need people who are tied either)
-	// S2: if someone has a unique skill, auto include 
-	// LOOP OVER THE SIMPLIFICATIONS USING WHILE LOOP
-	// S3: if everyone has a skill then remove that skill
-	// S4: there are more simplifications that will really help
+	// S1: if someone is a subset of someone else, automatically exclude the -- COMPLETE
+	// S1.5: (we don't need people who are tied either)
+	// S2: if someone has a unique skill, auto include -- COMPLETE
+	// S3: LOOP OVER THE SIMPLIFICATIONS USING WHILE LOOP -- COMPLETE
+	// S4: if everyone has a skill then remove that skill
+	// S5: exclude anyone who does not add anything new after simplifying
+	// S6: if remaining uncovered skills is less than number of possible skills, return
 	
 	return 0;
 }
