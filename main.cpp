@@ -1,24 +1,21 @@
-//TODO: There is an issue in the simplify function, it isn't returning things
-//correctly, without it, the first testcase runs but the second still does not
 #include <iostream>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <algorithm>
-#include <bit>
 #include <cstdint>
 #include <bitset>
 
 
 struct Solution {
-	std::vector<uint64_t> undecided;
-	std::vector<uint64_t> included;
-	std::vector<uint64_t> excluded;
-	uint64_t uncovered;
-	uint64_t covered;
+	std::vector<std::bitset<200>> undecided;
+	std::vector<std::bitset<200>> included;
+	std::vector<std::bitset<200>> excluded;
+	std::bitset<200> uncovered;
+	std::bitset<200> covered;
 	int team_size;
 	int tree_depth;
-	uint64_t skills_mask;
+	std::bitset<200> skills_mask;
 };
 
 int pickPerson(const Solution& state) {
@@ -26,7 +23,7 @@ int pickPerson(const Solution& state) {
 	int max_diff = 0;
 	for (size_t i=0; i<state.undecided.size(); ++i) {
 		// num unique skills
-		int diff = std::popcount((state.undecided[i] & ~state.covered) & state.skills_mask);
+		int diff = ((state.undecided[i] & ~state.covered) & state.skills_mask).count();
 
 		if (diff > max_diff) {
 			max_diff = diff;
@@ -45,8 +42,8 @@ Solution simplify(Solution state) {
 		// Remove subsets
         for (size_t i = 0; i < state.undecided.size(); ++i) {
             for (size_t j = i + 1; j < state.undecided.size();) {
-                uint64_t a = state.undecided[i] & ~state.covered;
-                uint64_t b = state.undecided[j] & ~state.covered;
+                std::bitset<200> a = state.undecided[i] & ~state.covered;
+                std::bitset<200> b = state.undecided[j] & ~state.covered;
 
                 if ((a & b) == a) {
 					// remove if a is subset of b
@@ -68,31 +65,31 @@ Solution simplify(Solution state) {
         int skill_count[64] = {0};
 
         // find what skills each remaining person has
-        for (uint64_t person : state.undecided) {
-			uint64_t valid = person & ~state.covered;
+        for (std::bitset<200> person : state.undecided) {
+			std::bitset<200> valid = person & ~state.covered;
             for (int b = 0; b < 64; ++b) {
-                if (valid & (1ULL << b)) {
+                if (valid.test(b)) {
                     skill_count[b]++;
                 }
             }
         }
 
 		// get the unique ones
-        uint64_t unique_bits = 0;
+        std::bitset<200> unique_bits = 0;
         for (int b = 0; b < 64; ++b) {
             if (skill_count[b] == 1) {
-                unique_bits |= (1ULL << b);
+                unique_bits.set(b);
             }
         }
 
         // include the people who are forced because of unique bits
         for (size_t i = 0; i < state.undecided.size();) {
-            uint64_t p = state.undecided[i];
+            std::bitset<200> p = state.undecided[i];
 		
-            if (p & unique_bits) {
+            if ((p & unique_bits).any()) {
                 state.included.push_back(p);
                 state.covered |= p;
-                state.uncovered &= ~p & state.skills_mask;
+                state.uncovered &= (~p & state.skills_mask);
                 state.team_size++;
 
                 std::swap(state.undecided[i], state.undecided.back());
@@ -115,7 +112,7 @@ Solution solve(Solution state, Solution& best_state) {
 
 	// bounding. Improvement: if two less than current best, can end if one person can't get us solution
 	if (state.team_size == best_state.team_size - 2) {
-		if (~(state.skills_mask & (state.covered | state.undecided[pickPerson(state)]))) {
+		if ((state.skills_mask & ~(state.covered | state.undecided[pickPerson(state)])).any()) {
 		return best_state;
 		}
 	}
@@ -139,7 +136,7 @@ Solution solve(Solution state, Solution& best_state) {
 	}
 	// swaps selected person to back and pops it
 	std::swap(state.undecided[next_index], state.undecided.back());
-	uint64_t next_person = state.undecided.back();
+	std::bitset<200> next_person = state.undecided.back();
 	state.undecided.pop_back();
 	
 	// include and exclude state and then recursion time
@@ -178,7 +175,7 @@ Solution approximate(Solution state) {
 			break;
 		}
 		std::swap(state.undecided[best_index], state.undecided.back());
-		uint64_t val = state.undecided.back();
+		std::bitset<200> val = state.undecided.back();
 		state.undecided.pop_back();
 		state.included.push_back(val);
 		state.covered |= val;
@@ -193,9 +190,9 @@ int main() {
 	int n, k;
 	std::cin >> n >> k;
 
-	std::unordered_map<std::string, uint64_t> skillset;
+	std::unordered_map<std::string, std::bitset<200>> skillset;
 	std::string s;
-	uint64_t skills_mask = 0;
+	std::bitset<200> skills_mask = 0;
 
 	for (int i=0; i<k; ++i) {
 		std::cin >> s;
@@ -204,7 +201,7 @@ int main() {
 	}
 
 	int num;
-	std::vector<uint64_t> people(n, 0);
+	std::vector<std::bitset<200>> people(n, 0);
 
 	for (int i=0; i<n; ++i) {
 		std::cin >> num;
