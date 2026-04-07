@@ -45,8 +45,8 @@ Solution simplify(Solution state) {
 		// Remove subsets
         for (size_t i = 0; i < state.undecided.size(); ++i) {
             for (size_t j = i + 1; j < state.undecided.size();) {
-                uint64_t a = state.undecided[i];
-                uint64_t b = state.undecided[j];
+                uint64_t a = state.undecided[i] & ~state.covered;
+                uint64_t b = state.undecided[j] & ~state.covered;
 
                 if ((a & b) == a) {
 					// remove if a is subset of b
@@ -69,8 +69,9 @@ Solution simplify(Solution state) {
 
         // find what skills each remaining person has
         for (uint64_t person : state.undecided) {
+			uint64_t valid = person & ~state.covered;
             for (int b = 0; b < 64; ++b) {
-                if (person & (1ULL << b)) {
+                if (valid & (1ULL << b)) {
                     skill_count[b]++;
                 }
             }
@@ -87,7 +88,7 @@ Solution simplify(Solution state) {
         // include the people who are forced because of unique bits
         for (size_t i = 0; i < state.undecided.size();) {
             uint64_t p = state.undecided[i];
-
+		
             if (p & unique_bits) {
                 state.included.push_back(p);
                 state.covered |= p;
