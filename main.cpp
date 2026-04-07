@@ -100,22 +100,34 @@ Solution simplify(Solution state) {
                 ++i;
             }
         }
-    }
 
 	// S5: exclude people who don't add any new skills
-	for (size_t i = 0; i < state.undecided.size();) {
-    std::bitset<200> p = state.undecided[i];
-    std::bitset<200> valid = p & ~state.covered;
+		for (size_t i=0; i < state.undecided.size(); ++i) {
+			std::bitset<200> p = state.undecided[i];
+			std::bitset<200> valid = p & ~state.covered;
 
-    if (!valid.any()) {
-        std::swap(state.undecided[i], state.undecided.back());
-        state.undecided.pop_back();
-        changed = true;
-    } else {
-        ++i;
-    }
-}
+			if (!valid.any()) {
+				std::swap(state.undecided[i], state.undecided.back());
+				state.undecided.pop_back();
+				changed = true;
+			} else {
+				++i;
+			}
+		}
+		/*
+		std::bitset<200> possible = 0;
+		for (auto p : state.undecided) {
+			possible |= p;
+		}
+		possible &= ~state.covered;
 
+		if ((state.uncovered & ~possible).any()) {
+			state.undecided.clear();
+			state.covered.reset();
+			break;
+		}	
+		*/
+	}
     return state;
 }
 
@@ -257,12 +269,13 @@ int main() {
 
 	// Simplifications:
 	// S1: if someone is a subset of someone else, automatically exclude the -- COMPLETE
-	// S1.5: (we don't need people who are tied either)
+	// S1.5: we don't need people who are tied either -- COMPLETE, already implemented
 	// S2: if someone has a unique skill, auto include -- COMPLETE
 	// S3: LOOP OVER THE SIMPLIFICATIONS USING WHILE LOOP -- COMPLETE
 	// S4: if everyone has a skill then remove that skill
-	// S5: exclude anyone who does not add anything new after simplifying
-	// S6: if remaining uncovered skills is less than number of possible skills, return
+	// S5: exclude anyone who does not add anything new after simplifying -- COMPLETE 
+	// S6: if remaining uncovered skills is greater than number of possible skills -- COMPLETE
+	// but made it worse, try implementing within another loop to reduce time?
 	
 	return 0;
 }
