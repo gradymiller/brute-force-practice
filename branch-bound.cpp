@@ -34,6 +34,19 @@ int pickPerson(const Solution& state) {
 	return best_index;
 }
 
+// Using a separate function to get unique bits from a lst of bitstrings
+uint64_t getUnique(std::vector<uint64_t> lst) {
+	uint64_t once = 0;
+	uint64_t twice = 0;
+
+	for (uint64_t v : lst) {
+		twice |= once & v;
+		once ^= v;
+	}
+
+	return once & ~twice;
+}
+
 Solution simplify(Solution state) {
 	// this is weird. Can't just have a do, while loop?
 	bool changes = true;
@@ -58,20 +71,13 @@ Solution simplify(Solution state) {
 			}
 		}
 
-		// no idea. I'm ignoring this
-		uint64_t once = 0;
-		uint64_t twice = 0;
-
-		for (uint64_t v : state.undecided) {
-			twice |= once & v;
-			once ^= v;
-		}
-
-		uint64_t unique_bits = once & ~twice;
-		unique_bits &= state.skills_mask;
-
+		uint64_t unique_bits;
 		for (size_t i = 0; i < state.undecided.size(); ) {
 			uint64_t val = state.undecided[i];
+
+			// Using function to get unique bits 
+			unique_bits = getUnique(state.undecided);
+			unique_bits &= state.skills_mask;
 
 			if (val & unique_bits) {
 				state.included.push_back(val);
@@ -208,10 +214,6 @@ int main() {
 
 	initial_state = simplify(initial_state);
 	Solution best_guess = approximate(initial_state);
-	for (size_t i=0; i<best_guess.included.size(); ++i) {
-		std::bitset<64> bits(best_guess.included[i]);
-		std::cout << bits << std::endl;
-	}
 
 	Solution solution_state = solve(initial_state, best_guess);
 
