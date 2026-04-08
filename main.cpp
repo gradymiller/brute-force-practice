@@ -19,9 +19,14 @@ struct Solution {
 int pickPerson(const Solution& state) {
     int best_index = -1;
     int max_diff = 0;
+
+    // only care about uncovered skills
     auto uncovered_mask = ~state.covered & state.skills_mask;
-    for (size_t i=0; i<state.undecided.size(); ++i) {
+
+    for (size_t i = 0; i < state.undecided.size(); ++i) {
         int diff = (state.undecided[i] & uncovered_mask).count();
+
+        // pick person that adds most new skills
         if (diff > max_diff) {
             max_diff = diff;
             best_index = i;
@@ -33,22 +38,24 @@ int pickPerson(const Solution& state) {
 void simplify(Solution& state) {
     bool changed = true;
 
+    // keep simplifying until nothing changes
     while (changed) {
         changed = false;
 
+        // remove subsets
         for (size_t i = 0; i < state.undecided.size(); ++i) {
             for (size_t j = i + 1; j < state.undecided.size();) {
                 auto a = state.undecided[i] & ~state.covered;
                 auto b = state.undecided[j] & ~state.covered;
 
                 if ((a & b) == a) {
-					// if a is subset of b
+                    // a is useless (subset of b)
                     std::swap(state.undecided[i], state.undecided.back());
                     state.undecided.pop_back();
                     changed = true;
                     break;
                 } else if ((a & b) == b) {
-					// if b is subset of a
+                    // b is useless (subset of a)
                     std::swap(state.undecided[j], state.undecided.back());
                     state.undecided.pop_back();
                     changed = true;
@@ -60,20 +67,25 @@ void simplify(Solution& state) {
 
         int skill_count[200] = {0};
 
+        // count how many people can cover each skill
         for (auto& person : state.undecided) {
             auto valid = person & ~state.covered;
+
             for (int i = valid._Find_first(); i < 200; i = valid._Find_next(i)) {
                 skill_count[i]++;
             }
         }
 
         std::bitset<200> unique_bits = 0;
+
+        // find skills that only one person can cover
         for (int b = 0; b < 200; ++b) {
             if (skill_count[b] == 1) {
                 unique_bits.set(b);
             }
         }
 
+        // force include people with unique skills
         for (size_t i = 0; i < state.undecided.size();) {
             auto p = state.undecided[i];
             auto valid = p & ~state.covered;
@@ -92,7 +104,8 @@ void simplify(Solution& state) {
             }
         }
 
-        for (size_t i=0; i < state.undecided.size();) {
+        // remove people that add nothing new
+        for (size_t i = 0; i < state.undecided.size();) {
             auto p = state.undecided[i];
             auto valid = p & ~state.covered;
 
@@ -109,7 +122,7 @@ void simplify(Solution& state) {
 
 void solve(Solution& state, Solution& best_state) {
 
-    // return if better solution than current best
+    // found full solution
     if (state.covered == state.skills_mask) {
         if (state.team_size < best_state.team_size) {
             best_state = state;
@@ -117,7 +130,7 @@ void solve(Solution& state, Solution& best_state) {
         return;
     }
 
-	//check if even possible
+    // check if even possible to finish
     std::bitset<200> possible = 0;
     for (auto& p : state.undecided) {
         possible |= p;
@@ -126,43 +139,43 @@ void solve(Solution& state, Solution& best_state) {
 
     if ((state.uncovered & ~possible).any()) return;
 
-	// better loewr bound than just checking if its possible
-	int bits_remaining = state.uncovered.count();
+    // how many bits we still need to cover
+    int bits_remaining = state.uncovered.count();
 
-	// find the person with the most skills
-	int max_diff = 0;
-	for (auto& person : state.undecided) {
-		int diff = (person & state.uncovered).count();
-		if (diff > max_diff) {
-			max_diff = diff;
-		}
-	}
+    int max_diff = 0;
+    for (auto& person : state.undecided) {
+        int diff = (person & state.uncovered).count();
+        if (diff > max_diff) {
+            max_diff = diff;
+        }
+    }
 
-	// early exit check
-	if (max_diff == 0) return;
+    // nobody can help anymore
+    if (max_diff == 0) return;
 
-	int bound = (bits_remaining + max_diff - 1) / max_diff;
+    // ceil division - using the ceil function broke because of integer division
+    int bound = (bits_remaining + max_diff - 1) / max_diff;
 
-	if (state.team_size + bound >= best_state.team_size) {
-		return;
-	}
+    // prune if can't beat best state
+    if (state.team_size + bound >= best_state.team_size) {
+        return;
+    }
 
     int idx = pickPerson(state);
     if (idx == -1) return;
 
-    // save full original state (CRITICAL FIX)
+    // save full state - needed because simplify is hard to reverse 
     Solution original = state;
 
-    // choose next person
+    // pick next person
     std::swap(state.undecided[idx], state.undecided.back());
     auto next_person = state.undecided.back();
     state.undecided.pop_back();
 
     // include branch
-    {
         state = original;
 
-        // remove chosen person again
+        // remove chosen person
         std::swap(state.undecided[idx], state.undecided.back());
         state.undecided.pop_back();
 
@@ -173,25 +186,24 @@ void solve(Solution& state, Solution& best_state) {
 
         simplify(state);
         solve(state, best_state);
-    }
 
     // exclude branch
-    {
         state = original;
 
-        // remove chosen person (exclude it)
+        // remove chosen person (don't allow it anymore)
         std::swap(state.undecided[idx], state.undecided.back());
         state.undecided.pop_back();
 
         simplify(state);
         solve(state, best_state);
-    }
 
-    // restore
+    // restore state
     state = original;
 }
 
 void approximate(Solution& state) {
+
+    // greedy: keep picking best person
     while (state.covered != state.skills_mask) {
         int best_index = pickPerson(state);
         if (best_index == -1) break;
@@ -215,10 +227,12 @@ int main() {
     std::string s;
     std::bitset<200> skills_mask = 0;
 
-    for (int i=0; i<k; ++i) {
+    // map each skill to a bit
+    for (int i = 0; i < k; ++i) {
         std::cin >> s;
         std::bitset<200> mask;
         mask.set(i);
+
         skillset[s] = mask;
         skills_mask.set(i);
     }
@@ -226,9 +240,10 @@ int main() {
     int num;
     std::vector<std::bitset<200>> people(n, 0);
 
-    for (int i=0; i<n; ++i) {
+    // build people skill masks
+    for (int i = 0; i < n; ++i) {
         std::cin >> num;
-        for (int j=0; j<num; ++j) {
+        for (int j = 0; j < num; ++j) {
             std::cin >> s;
             people[i] |= skillset[s];
         }
@@ -242,12 +257,16 @@ int main() {
     initial_state.tree_depth = 0;
     initial_state.skills_mask = skills_mask;
 
+    // initial reductions
     simplify(initial_state);
 
+    // greedy starting solution
     Solution best_guess = initial_state;
     approximate(best_guess);
 
     Solution best_state = best_guess;
+
+    // branch and bound
     solve(initial_state, best_state);
 
     std::cout << best_state.team_size << std::endl;
