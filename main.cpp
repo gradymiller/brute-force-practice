@@ -108,6 +108,16 @@ void simplify(Solution& state) {
 }
 
 void solve(Solution& state, Solution& best_state) {
+
+    // return if better solution than current best
+    if (state.covered == state.skills_mask) {
+        if (state.team_size < best_state.team_size) {
+            best_state = state;
+        }
+        return;
+    }
+
+	//check if even possible
     std::bitset<200> possible = 0;
     for (auto& p : state.undecided) {
         possible |= p;
@@ -116,15 +126,32 @@ void solve(Solution& state, Solution& best_state) {
 
     if ((state.uncovered & ~possible).any()) return;
 
-    if (state.covered == state.skills_mask) {
-        if (state.team_size < best_state.team_size) {
-            best_state = state;
-        }
-        return;
-    }
+	// better loewr bound than just checking if its possible
+	int bits_remaining = state.uncovered.count();
+
+	// find the person with the most skills
+	int max_diff = 0;
+	for (auto& person : state.undecided) {
+		int diff = (person & state.uncovered).count();
+		if (diff > max_diff) {
+			max_diff = diff;
+		}
+	}
+
+	// early exit check
+	if (max_diff == 0) return;
+
+	int bound = (bits_remaining + max_diff - 1) / max_diff;
+
+	if (state.team_size + bound >= best_state.team_size) {
+		return;
+	}
 
     int idx = pickPerson(state);
     if (idx == -1) return;
+
+    // save full original state (CRITICAL FIX)
+    Solution original = state;
 
     // choose next person
     std::swap(state.undecided[idx], state.undecided.back());
@@ -133,12 +160,11 @@ void solve(Solution& state, Solution& best_state) {
 
     // include branch
     {
-        // save state
-        auto old_covered = state.covered;
-        auto old_uncovered = state.uncovered;
-        int old_team_size = state.team_size;
-        size_t old_included_size = state.included.size();
-        auto old_undecided = state.undecided; 
+        state = original;
+
+        // remove chosen person again
+        std::swap(state.undecided[idx], state.undecided.back());
+        state.undecided.pop_back();
 
         state.included.push_back(next_person);
         state.covered |= next_person;
@@ -147,28 +173,22 @@ void solve(Solution& state, Solution& best_state) {
 
         simplify(state);
         solve(state, best_state);
-
-        // restore
-        state.covered = old_covered;
-        state.uncovered = old_uncovered;
-        state.team_size = old_team_size;
-        state.included.resize(old_included_size);
-        state.undecided = old_undecided;
     }
 
     // exclude branch
     {
-		// Using a copy here because its hard to restore after running simplify
-        auto old_undecided = state.undecided;
+        state = original;
+
+        // remove chosen person (exclude it)
+        std::swap(state.undecided[idx], state.undecided.back());
+        state.undecided.pop_back();
 
         simplify(state);
         solve(state, best_state);
-
-        state.undecided = old_undecided;
     }
 
-    // restore removed person
-    state.undecided.push_back(next_person);
+    // restore
+    state = original;
 }
 
 void approximate(Solution& state) {
